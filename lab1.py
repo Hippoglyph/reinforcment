@@ -1,8 +1,12 @@
 import tkinter as tk
-#import numpy as np
+import numpy as np
 
 maxC = 5
 maxR = 4
+goalC = 4
+goalR = 4
+startC = 0
+startR = 0
 
 class State:
 	def __init__(self, myC,myR,tC,tR):
@@ -78,67 +82,99 @@ def getWall(r,c):
 
 	return []
 
-
-
-def playerTransition(state, action):
+def playerTransition(goalState, currentState, action):
 	#borders
-	if ((state.myC == 0 and action == "L") or (state.myC == maxC and action == "R") or (state.myR == 0 and action == "U") or (state.myR == maxR and action == "D")):
+	if ((currentState.myC == 0 and action == "L") or (currentState.myC == maxC and action == "R") or (currentState.myR == 0 and action == "U") or (currentState.myR == maxR and action == "D")):
 		return 0
 
-	#Wall 1
-	if ((state.posEquals(0,1) and action == "R") or (state.posEquals(0,2) and action == "L")):
+	if (action == "L" and goalState.myC-1 != currentState.myC):
 		return 0
-	if ((state.posEquals(1,1) and action == "R") or (state.posEquals(1,2) and action == "L")):
+	if (action == "R" and goalState.myC+1 != currentState.myC):
 		return 0
-	if ((state.posEquals(2,1) and action == "R") or (state.posEquals(2,2) and action == "L")):
+	if (action == "U" and goalState.myR-1 != currentState.myR):
 		return 0
-
-	#Wall 2
-	if ((state.posEquals(1,3) and action == "R") or (state.posEquals(1,4) and action == "L")):
+	if (action == "D" and goalState.myR+1 != currentState.myR):
 		return 0
-	if ((state.posEquals(2,3) and action == "R") or (state.posEquals(2,4) and action == "L")):
-		return 0
-	if ((state.posEquals(2,4) and action == "D") or (state.posEquals(3,4) and action == "U")):
-		return 0
-	if ((state.posEquals(2,5) and action == "D") or (state.posEquals(3,5) and action == "U")):
+	if (action == "S" and (goalState.myR != currentState.myR or goalState.myC != currentState.myC)):
 		return 0
 
-	#Wall 3
-	if ((state.posEquals(4,1) and action == "D") or (state.posEquals(5,1) and action == "U")):
+	if (action in getWall(currentState.myR, currentState.myC)):
 		return 0
-	if ((state.posEquals(4,2) and action == "D") or (state.posEquals(5,2) and action == "U")):
-		return 0
-	if ((state.posEquals(4,3) and action == "D") or (state.posEquals(5,3) and action == "U")):
-		return 0
-	if ((state.posEquals(4,4) and action == "D") or (state.posEquals(5,4) and action == "U")):
-		return 0
-	if ((state.posEquals(5,3) and action == "R") or (state.posEquals(5,4) and action == "L")):
-		return 0	
 
 	return 1
 
-def minotaurTransition(state, action):
-	#borders
-	if ((state.tC == 0 and action == "L") or (state.tC == maxC and action == "R") or (state.tR == 0 and action == "U") or (state.tR == maxR and action == "D")):
+def minotaurTransition(goalState, currentState, action):
+	if (not(goalState.tC-1 == currentState.tC or goalState.tC+1 == currentState.tC or goalState.tR-1 == currentState.tR or goalState.tR+1 == currentState.tR)):
 		return 0
 
 	moves = 0
-	if (state.tC > 0):
+	if (currentState.tC > 0):
 		moves+=1
-	if (state.tC < maxC):
+	if (currentState.tC < maxC):
 		moves+=1
-	if (state.tR > 0):
+	if (currentState.tR > 0):
 		moves+=1
-	if (state.tR < maxR):
+	if (currentState.tR < maxR):
 		moves+=1
 
 	return 1/moves
 
+def getRewardAtState(rewardState, action):
+	if(rewardState.tC == rewardState.myC and rewardState.tR == rewardState.myR):
+		return -1
+	if(rewardState.myC == goalC and rewardState.myR == goalR):
+		return 1
+	return 0
 
-def create_grid(event=None, state=State.getInitState(), walls = getWalls()):
+def initValueState(states):
+	for mc in range(maxC + 1):
+		for mr in range(maxR + 1):
+			for tc in range(maxC + 1):
+				for tr in range(maxR + 1):
+					states[mc][mr][tc][tr] = max([getRewardAtState(State(mc,mr,tc,tr), a) for a in Action.getAllActions()])
+
+def getProbability(goalState, currentState, action):
+	return playerTransition(goalState, currentState, action) * minotaurTransition(goalState, currentState, action)
+
+def getExpectedReward(state, action, valState):
+	accumulate = 0
+	for mc in range(maxC + 1):
+		for mr in range(maxR + 1):
+			for tc in range(maxC + 1):
+				for tr in range(maxR + 1):
+					accumulate += getProbability(State(mc,mr,tc,tr), state, action)*valState[mc][mr][tc][tr]
+	return accumulate
+
+def solveBellman(T, valState, valStatePrev):
+	pi = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1), dtype=np.int8)
+	for t in range(T, 0, -1):
+		print(t)
+		for mc in range(maxC + 1):
+			for mr in range(maxR + 1):
+				for tc in range(maxC + 1):
+					for tr in range(maxR + 1):
+						state = State(mc,mr,tc,tr)
+						best = float("-inf")
+						actions = Action.getAllActions()
+						for i in range(len(actions)):
+							a = actions[i]
+							value = getRewardAtState(state, a) + getExpectedReward(state, a, valState)
+							if value > best:
+								best = value
+								valStatePrev[mc][mr][tc][tr] = best
+								pi[mc][mr][tc][tr] = i
+		valState = valStatePrev.copy()
+	return pi, valState
+
+
+def create_grid(event=None):
     w = c.winfo_width() # Get current width of canvas
     h = c.winfo_height() # Get current height of canvas
     c.delete('grid_line') # Will only remove the grid_line
+
+    #print(state)
+    #print(walls)
+
 
     colWidth = w//(maxC + 1)
     rowWidth = h//(maxR + 1)
@@ -160,16 +196,28 @@ def create_grid(event=None, state=State.getInitState(), walls = getWalls()):
     			c.create_line([(col*colWidth, (row + 1)*rowWidth - 1), ((col+1)*colWidth, (row+1)*rowWidth - 1)], tag='grid_line', fill="black", width=1)
     		if "U" in walls[row][col]:
     			c.create_line([(col*colWidth, row*rowWidth + 1), ((col+1)*colWidth, row*rowWidth + 1)], tag='grid_line', fill="black", width=1)
+    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text=Action.getAllActions()[pi[col, row, 5,0]], font=("Helvetica", colWidth//4), tag='grid_line')
+
+    c.create_text((globalState.myC)*colWidth+colWidth*0.33, (globalState.myR)*rowWidth + rowWidth/2, text=u'\u263a', font=("Helvetica", colWidth//4), tag='grid_line')
+    c.create_text((globalState.tC)*colWidth+colWidth*0.66, (globalState.tR)*rowWidth + rowWidth/2, text=u'\u2620', font=("Helvetica", colWidth//4), tag='grid_line')
 
 
-initState = State(0,0, 4, 4)
+globalState = State(startC,startR, 5, 0)
 walls = getWalls()
+
+valState = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
+valStatePrev = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
+
+initValueState(valState)
+
+pi, valState = solveBellman(2, valState, valStatePrev)
 
 root = tk.Tk()
 
 c = tk.Canvas(root, height=500, width=500, bg='white')
 c.pack(fill=tk.BOTH, expand=True)
 
-c.bind('<Configure>', lambda inState = initState, walls = walls : create_grid(inState, walls))
+c.bind('<Configure>', create_grid)
 
+#root.after(5000,create_grid)
 root.mainloop()
