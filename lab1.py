@@ -1,6 +1,7 @@
 import tkinter as tk
 import numpy as np
 import random
+import matplotlib.pyplot as plt
 
 class State:
 	def __init__(self, myC,myR,tC,tR):
@@ -176,7 +177,7 @@ def getExpectedReward(state, action, valState):
 						accumulate += getProbability(State(mc,mr,tc,tr), state, action)*valState[mc][mr][tc][tr]
 	return accumulate
 
-def solveBellman(T, valState, valStatePrev, pi, debugValState):
+def solveBellman(T, valState, valStatePrev, pi):#, debugValState):
 	for t in range(T-1, -1, -1):
 		print(t)
 		for mc in range(maxC + 1):
@@ -194,7 +195,41 @@ def solveBellman(T, valState, valStatePrev, pi, debugValState):
 								valStatePrev[mc][mr][tc][tr] = best
 								pi[t][mc][mr][tc][tr] = i
 		copy(valState, valStatePrev)
-		copy(debugValState[t], valState)
+		#copy(debugValState[t], valState)
+
+def solveHoward(valState, valStatePrev, pi):
+	lam = 1-1/30
+	piPrev = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1), dtype=np.int8)
+	counter = 0
+	while True:
+		print(counter)
+		counter+=1
+		for mc in range(maxC + 1):
+			for mr in range(maxR + 1):
+				for tc in range(maxC + 1):
+					for tr in range(maxR + 1):
+						state = State(mc,mr,tc,tr)
+						a=Action.getAllActions()[piPrev[mc][mr][tc][tr]]
+						valState[mc][mr][tc][tr] = getRewardAtState(state, a, True) + lam*getExpectedReward(state, a, valStatePrev)
+		for mc in range(maxC + 1):
+			for mr in range(maxR + 1):
+				for tc in range(maxC + 1):
+					for tr in range(maxR + 1):
+						state = State(mc,mr,tc,tr)
+						best = float("-inf")
+						actions = Action.getAllActions()
+						for i in range(len(actions)):
+							a = actions[i]
+							value = getRewardAtState(state, a, True) + lam*getExpectedReward(state, a, valState)
+							if value > best:
+								best = value
+								pi[mc][mr][tc][tr] = i
+
+		if ((pi == piPrev).all()):
+			break
+
+		copy(piPrev, pi)
+		copy(valStatePrev, valState)
 
 def copy(take, give):
 	for mc in range(maxC + 1):
@@ -235,8 +270,8 @@ def create_grid(event=None):
     			c.create_line([(col*colWidth, row*rowWidth + 1), ((col+1)*colWidth, row*rowWidth + 1)], tag='grid_line', fill="black", width=1)
     		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text=Action.getAllActions()[pi[deIndex,col,row, globalState.tC, globalState.tR]], font=("Helvetica", colWidth//4), tag='grid_line')
     		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text="{:.1f}".format(debugValState[deIndex][col, row, globalState.tC, globalState.tR]), font=("Helvetica", colWidth//4), tag='grid_line')
-    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=Action.getAllActions()[pi[time,col,row, minoC, minoR]], font=("Helvetica", colWidth//5), tag='grid_line')
-    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.66, text="{:.2f}".format(debugValState[time + 1][col, row, minoC, minoR]), font=("Helvetica", colWidth//6), tag='grid_line')
+    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=Action.getAllActions()[pi[col,row, minoC, minoR]], font=("Helvetica", colWidth//5), tag='grid_line')
+    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.66, text="{:.2f}".format(valState[col, row, minoC, minoR]), font=("Helvetica", colWidth//6), tag='grid_line')
     		#text="{:.1f}".format(valState[col, row, 5-1, 0])
     		#text=Action.getAllActions()[pi[col,row, 5, 0]]
     		#text="{:.1f}".format(debugValState[deIndex][col, row, 5, 0])
@@ -266,7 +301,8 @@ def moveMino(rightMove, leftMove):
 		minoR += leftMove
 		minoR = min(maxR, minoR)
 		minoR = max(minoR, 0)
-	advanceTime()
+	if piTime:
+		advanceTime()
 	create_grid()
 
 def advanceTime():
@@ -283,12 +319,29 @@ def advanceTime():
 		minoR = goalR
 		time = time % T
 
+def resetGame():
+	global time
+	global minoC
+	global minoR
+	global pC
+	global pR
+
+	pC = startC
+	pR = startR
+	minoC = goalC
+	minoR = goalR
+	create_grid()
+
+
 def playerMove():
 	global pC
 	global pR
 	global minoC
 	global minoR
-	a = Action.getAllActions()[pi[time, pC, pR, minoC, minoR]]
+	if piTime:
+		a = Action.getAllActions()[pi[time, pC, pR, minoC, minoR]]
+	else:
+		a = Action.getAllActions()[pi[pC, pR, minoC, minoR]]
 	if a in walls[pR][pC]:
 		return
 	if a == "L":
@@ -315,7 +368,34 @@ def rollOut(pi, T):
 		for game in range(totalGames):
 			winCounter += playGame(pi[-t:])
 		winRate[t-minT] = winCounter/totalGames
-	print(winRate)
+	return winRate
+
+def rollOutGeo(pi):
+	totalGames = 10000
+	winCounter = 0.0
+	for game in range(totalGames):
+		winCounter += playGameGeo(pi)
+	print (winCounter/totalGames)
+
+
+def playGameGeo(pi):
+	tC = goalC
+	tR = goalR
+	plC = startC
+	plR = startR
+
+	while (random.random() < 1-1/30):
+		newC, newR = playerMoveRollOut(pi, plC, plR, tC, tR)
+		tC, tR = minoTaurMoveRollOut(tC, tR, plC, plR)
+		plC = newC
+		plR = newR	
+
+		if (plC == goalC and plR == goalR):
+			return 1.0
+		elif (plC == tC and plR == tR):
+			return 0.0
+	return 0.0
+
 
 def playGame(pi):
 	tC = goalC
@@ -327,7 +407,7 @@ def playGame(pi):
 		newC, newR = playerMoveRollOut(pi[t], plC, plR, tC, tR)
 		tC, tR = minoTaurMoveRollOut(tC, tR, plC, plR)
 		plC = newC
-		plR = newR
+		plR = newR						
 
 	if (plC == goalC and plR == goalR):
 		return 1.0
@@ -383,6 +463,7 @@ startR = 0
 globalState = State(startC,startR, 4, 4)
 walls = getWalls()
 minotaurCanStay = False
+piTime = False
 
 minoC = 4
 minoR = 4
@@ -393,6 +474,14 @@ time = 0
 valState = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
 valStatePrev = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
 
+pi = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1), dtype=np.int8)
+
+solveHoward(valState,valStatePrev,pi)
+
+rollOutGeo(pi)
+
+'''
+#Finite Time Horizon
 T = 50
 
 debugValState = np.zeros((T+1, maxC+1,maxR+1,maxC+1,maxR+1))
@@ -403,9 +492,20 @@ pi = np.zeros((T, maxC+1,maxR+1,maxC+1,maxR+1), dtype=np.int8)
 initValueState(valState,pi)
 #copy(debugValState[T], valState)
 
-solveBellman(T, valState, valStatePrev, pi, debugValState)
+solveBellman(T, valState, valStatePrev, pi)#, debugValState)
 
-rollOut(pi, T)
+minoMoveWinRate = rollOut(pi, T)
+
+initValueState(valState,pi)
+minotaurCanStay = True
+solveBellman(T, valState, valStatePrev, pi)
+minoStayWinRate = rollOut(pi, T)
+
+plt.plot(range(9,T+1), minoMoveWinRate, label="Move Win Rate")
+plt.plot(range(9,T+1), minoStayWinRate, label="Stay Win Rate")
+plt.legend()
+plt.show()
+'''
 
 root = tk.Tk()
 
@@ -421,6 +521,8 @@ c.bind_all('<Left>', lambda e,rightMove = -1, leftMove = 0: moveMino(rightMove, 
 c.bind_all('<Right>', lambda e,rightMove = 1, leftMove = 0: moveMino(rightMove, leftMove))
 c.bind_all('<Up>', lambda e,rightMove = 0, leftMove = -1: moveMino(rightMove, leftMove))
 c.bind_all('<Down>', lambda e,rightMove = 0, leftMove = 1: moveMino(rightMove, leftMove))
+
+c.bind_all('r', lambda e: resetGame())
 
 #root.after(5000,create_grid)
 root.mainloop()
