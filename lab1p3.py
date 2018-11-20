@@ -37,104 +37,90 @@ def getReward(state, action):
 		return 1.0
 	return 0.0
 
-def playerTransition(goalState, state, action):
+def canMove(state, action):
+	#borders
+	if ((state.rC == 0 and action == "L") or (state.rC == maxC and action == "R") or (state.rR == 0 and action == "U") or (state.rR == maxR and action == "D")):
+		return False
+	return True
 
-	#TAKEN??!?!?!?
-	if state.isTaken():
-		if goalState.isInitState():
-			return 1.0
-		else:
-			return 0.0
-	else:
-		#borders
-		if ((state.rC == 0 and action == "L") or (state.rC == maxC and action == "R") or (state.rR == 0 and action == "U") or (state.rR == maxR and action == "D")):
-			if state.isSameState(goalState):
-				return 1.0
-			else:
-				return 0.0
+def QLearn(iterations):
+	Q = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
+	alpha = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
 
-		if (action == "L" and not(goalState.rC == state.rC-1 and goalState.rR == state.rR)):
-			return 0.0
-		if (action == "R" and not(goalState.rC == state.rC+1 and goalState.rR == state.rR)):
-			return 0.0
-		if (action == "U" and not(goalState.rR == state.rR-1 and goalState.rC == state.rC)):
-			return 0.0
-		if (action == "D" and not(goalState.rR == state.rR+1 and goalState.rC == state.rC)):
-			return 0.0
-		if (action == "S" and not(goalState.rR == state.rR and goalState.rC == state.rC)):
-			return 0.0
-	return 1.0
+	rR = rS[0]
+	rC = rS[1]
+	pR = pS[0]
+	pC = pS[1]
 
-def policeTransitions(goalState, state, action):
-	if state.isTaken():
-		if goalState.isInitState():
-			return 1.0
-		else:
-			return 0.0
-	else:
-		if abs(goalState.pC-state.pC) + abs(goalState.pR-state.pR) != 1:
-			return 0.0
+	for t in range(iterations):
+		state = state(rR,rC,pR,pC)
+		a = selectRandomAction(state)
+		r = getReward(state, a)
+		nextState = ...
 
-		moves = 0.0
-		if (state.pC > 0):
-			moves+=1.0
-		if (state.pC < maxC):
-			moves+=1.0
-		if (state.pR > 0):
-			moves+=1.0
-		if (state.pR < maxR):
-			moves+=1.0
+def getNextState(state, action):
+	#TAKEN here
 
-		return 1.0/moves
-	return 0
+	if action == "L":
+		state.rC -= 1
+	elif action == "R":
+		state.rC += 1
+	elif action == "U":
+		state.rR -= 1
+	elif action == "D":
+		state.rR += 1
 
-def getTransitionProbability(goalState, state, action):
-	return playerTransition(goalState, state, action) * policeTransitions(goalState, state, action)
+	a = policeWalk(state)
+	if a == "L":
+		state.pC -= 1
+	elif a == "R":
+		state.pC += 1
+	elif a == "U":
+		state.pR -= 1
+	elif a == "D":
+		state.pR += 1
 
-def getExpectedReward(state, action, valState):
-	accumulate = 0.0
-	for rR in range(maxR + 1):
-		for rC in range(maxC + 1):
-			for pR in range(maxR + 1):
-				for pC in range(maxC + 1):
-					goalState = State(rR,rC,pR,pC)
-					if goalState.isInitState() or ((abs(rC-state.rC) + abs(rR-state.rR) <= 1) and (abs(pC-state.pC) + abs(pR-state.pR) <= 1)):
-						accumulate += getTransitionProbability(goalState, state, action)*valState[rR,rC,pR,pC]
-	return accumulate
 
-def solveHoward(valState, pi, lam):
-	#lam = 0.95
-	piPrev = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1), dtype=np.int8)
-	valStatePrev = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1), dtype=np.double)
-	counter = 0
-	while True:
-		print(counter)
-		counter+=1
-		for rR in range(maxR + 1):
-			for rC in range(maxC + 1):
-				for pR in range(maxR + 1):
-					for pC in range(maxC + 1):
-						state = State(rR,rC,pR,pC)
-						a = actions[pi[rR,rC,pR,pC]]
-						valState[rR,rC,pR,pC] = getReward(state, a) + lam*getExpectedReward(state, a, valStatePrev)
-		for rR in range(maxR + 1):
-			for rC in range(maxC + 1):
-				for pR in range(maxR + 1):
-					for pC in range(maxC + 1):
-						state = State(rR,rC,pR,pC)
-						best = float("-inf")
-						for i in range(len(actions)):
-							a = actions[i]
-							value = getReward(state, a) + lam*getExpectedReward(state, a, valState)
-							if value > best:
-								best = value
-								pi[rR,rC,pR,pC] = i
+def selectRandomAction(state):
+	probs = np.zeros(len(actions), dtype=np.double)
+	moves = 0.0
+	for i in range(len(probs)):
+		if canMove(state, actions[i]):
+			moves+=1
+			probs[i] = 1
 
-		if ((pi == piPrev).all()):
-			break
+	for p in range(len(probs)):
+		probs[p] /= moves
 
-		copy(piPrev, pi)
-		copy(valStatePrev, valState)
+	cumSum = np.cumsum(probs)
+
+	val = random.random()
+
+	for i in range(len(cumSum)):
+		if cumSum[i] > val:
+			return actions[i]
+	return actions[-1]
+
+def policeWalk(state):
+
+	probs = np.zeros(len(actions)-1, dtype=np.double)
+	moves = 0.0
+	for i in range(len(probs)):
+		if canMove(state, actions[i+1]):
+			moves+=1
+			probs[i] = 1
+
+	for p in range(len(probs)):
+		probs[p] /= moves
+
+	cumSum = np.cumsum(probs)
+
+	val = random.random()
+
+	for i in range(len(cumSum)):
+		if cumSum[i] > val:
+			return actions[i+1]
+	return actions[-1]
 
 def copy(take, give):
 	for rR in range(maxR + 1):
@@ -240,9 +226,6 @@ rS = (0,0)
 maxR = 3
 maxC = 3
 
-pi = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1), dtype=np.int8)
-valState = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1))
-solveHoward(valState,pi, 0.8)
 
 gameRR = rS[0]
 gameRC = rS[1]
