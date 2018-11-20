@@ -144,7 +144,8 @@ def getRewardAtState(rewardState, action, end):
 		return 1.0
 	#if(rewardState.tC == rewardState.myC and rewardState.tR == rewardState.myR):
 	#	return -1.0
-
+	if(rewardState.myC == goalC and rewardState.myR == goalR):
+		return 0.0
 	if (abs(rewardState.myC-rewardState.tC) + abs(rewardState.myR-rewardState.tR) <= 1):
 			return -1.0
 	return 0.0
@@ -270,7 +271,7 @@ def create_grid(event=None):
     			c.create_line([(col*colWidth, row*rowWidth + 1), ((col+1)*colWidth, row*rowWidth + 1)], tag='grid_line', fill="black", width=1)
     		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text=Action.getAllActions()[pi[deIndex,col,row, globalState.tC, globalState.tR]], font=("Helvetica", colWidth//4), tag='grid_line')
     		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text="{:.1f}".format(debugValState[deIndex][col, row, globalState.tC, globalState.tR]), font=("Helvetica", colWidth//4), tag='grid_line')
-    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=Action.getAllActions()[pi[col,row, minoC, minoR]], font=("Helvetica", colWidth//5), tag='grid_line')
+    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=Action.getAllActions()[pi[time,col,row, minoC, minoR]], font=("Helvetica", colWidth//5), tag='grid_line')
     		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.66, text="{:.2f}".format(valState[col, row, minoC, minoR]), font=("Helvetica", colWidth//6), tag='grid_line')
     		#text="{:.1f}".format(valState[col, row, 5-1, 0])
     		#text=Action.getAllActions()[pi[col,row, 5, 0]]
@@ -463,7 +464,7 @@ startR = 0
 globalState = State(startC,startR, 4, 4)
 walls = getWalls()
 minotaurCanStay = False
-piTime = False
+piTime = True
 
 minoC = 4
 minoR = 4
@@ -474,6 +475,7 @@ time = 0
 valState = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
 valStatePrev = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
 
+'''
 pi = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1), dtype=np.int8)
 
 solveHoward(valState,valStatePrev,pi)
@@ -494,6 +496,7 @@ initValueState(valState,pi)
 
 solveBellman(T, valState, valStatePrev, pi)#, debugValState)
 
+'''
 minoMoveWinRate = rollOut(pi, T)
 
 initValueState(valState,pi)

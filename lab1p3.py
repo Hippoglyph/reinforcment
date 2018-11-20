@@ -16,9 +16,8 @@ class State:
 		return False
 
 	def isAtBank(self):
-		for bank in banks:
-			if self.rR == bank[0] and self.rC == bank[1]:
-				return True
+		if self.rR == bank[0] and self.rC == bank[1]:
+			return True
 		return False
 
 	def isInitState(self):
@@ -33,12 +32,14 @@ class State:
 
 def getReward(state, action):
 	if state.isTaken():
-		return -50.0
+		return -10.0
 	if state.isAtBank() and action == "S":
-		return 10.0
+		return 1.0
 	return 0.0
 
 def playerTransition(goalState, state, action):
+
+	#TAKEN??!?!?!?
 	if state.isTaken():
 		if goalState.isInitState():
 			return 1.0
@@ -74,86 +75,17 @@ def policeTransitions(goalState, state, action):
 		if abs(goalState.pC-state.pC) + abs(goalState.pR-state.pR) != 1:
 			return 0.0
 
-		#TOPLEFT
-		if state.rR < state.pR and state.rC < state.pC:
-			if goalState.pR < state.pR or goalState.pC < state.pC:
-				return 0.5
-			return 0.0
+		moves = 0.0
+		if (state.pC > 0):
+			moves+=1.0
+		if (state.pC < maxC):
+			moves+=1.0
+		if (state.pR > 0):
+			moves+=1.0
+		if (state.pR < maxR):
+			moves+=1.0
 
-		#TOPRIGHT
-		if state.rR < state.pR and state.rC > state.pC:
-			if goalState.pR < state.pR or goalState.pC > state.pC:
-				return 0.5
-			return 0.0
-
-		#BOTTOMLEFT
-		if state.rR > state.pR and state.rC < state.pC:
-			if goalState.pR > state.pR or goalState.pC < state.pC:
-				return 0.5
-			return 0.0
-
-		#BOTTOMRIGHT
-		if state.rR > state.pR and state.rC > state.pC:
-			if goalState.pR > state.pR or goalState.pC > state.pC:
-				return 0.5
-			return 0.0
-
-
-		#LEFT
-		if state.rR == state.pR and state.rC < state.pC:
-			if state.pR == 0:
-				if goalState.pR > state.pR or goalState.pC < state.pC:
-					return 0.5
-				return 0.0
-			if state.pR == maxR:
-				if goalState.pR < state.pR or goalState.pC < state.pC:
-					return 0.5
-				return 0.0
-			if goalState.pC > state.pC:
-				return 0.0
-			return 1.0/3.0
-
-		#Right
-		if state.rR == state.pR and state.rC > state.pC:
-			if state.pR == 0:
-				if goalState.pR > state.pR or goalState.pC > state.pC:
-					return 0.5
-				return 0.0
-			if state.pR == maxR:
-				if goalState.pR < state.pR or goalState.pC > state.pC:
-					return 0.5
-				return 0.0
-			if goalState.pC < state.pC:
-				return 0.0
-			return 1.0/3.0
-
-		#UP
-		if state.rR < state.pR and state.rC == state.pC:
-			if state.pC == 0:
-				if goalState.pR < state.pR or goalState.pC > state.pC:
-					return 0.5
-				return 0.0
-			if state.pC == maxC:
-				if goalState.pR < state.pR or goalState.pC < state.pC:
-					return 0.5
-				return 0.0
-			if goalState.pR > state.pR:
-				return 0.0
-			return 1.0/3.0
-
-		#Down
-		if state.rR > state.pR and state.rC == state.pC:
-			if state.pC == 0:
-				if goalState.pR > state.pR or goalState.pC > state.pC:
-					return 0.5
-				return 0.0
-			if state.pC == maxC:
-				if goalState.pR > state.pR or goalState.pC < state.pC:
-					return 0.5
-				return 0.0
-			if goalState.pR < state.pR:
-				return 0.0
-			return 1.0/3.0
+		return 1.0/moves
 	return 0
 
 def getTransitionProbability(goalState, state, action):
@@ -228,7 +160,7 @@ def create_grid(pi, valState, rR, rC, pR, pC):
 
     for row in range(0, maxR + 1):
     	for col in range(0, maxC + 1):
-    		if (row == bank1[0] and col == bank1[1]) or (row == bank2[0] and col == bank2[1]) or (row == bank3[0] and col == bank3[1]) or (row == bank4[0] and col == bank4[1]):
+    		if (row == bank[0] and col == bank[1]):
     			c.create_text((col)*colWidth+colWidth*0.85, (row)*rowWidth + rowWidth*0.75, text=u'\u2721', font=("Helvetica", colWidth//6), tag='grid_line')
     		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=actions[pi[row,col, pR, pC]], font=("Helvetica", colWidth//5), tag='grid_line')
     		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.66, text="{:.2f}".format(valState[row, col, pR, pC]), font=("Helvetica", colWidth//6), tag='grid_line')
@@ -297,36 +229,20 @@ def advanceGame(pi):
 	gameRC = newRC
 	create_grid(pi, valState, gameRR, gameRC, gamePR, gamePC)
 
+bank = (1,1)
 
-bank1 = (0,0)
-bank2 = (2,0)
-bank3 = (0,5)
-bank4 = (2,5)
-
-banks = [bank1, bank2, bank3, bank4]
 actions = ["S" ,"U", "R", "D", "L"]
 
-pS = (1,2)
+pS = (3,3)
 
 rS = (0,0)
 
-maxR = 2
-maxC = 5
+maxR = 3
+maxC = 3
 
-#valState = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1))
-#pi = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1), dtype=np.int8)
-
-lams = np.linspace(0,1,19)
-valStates = np.zeros(len(lams))
-#print(lams)
-for i in range(len(lams)):
-	pi = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1), dtype=np.int8)
-	valState = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1))
-	solveHoward(valState,pi, lams[i])
-	valStates[i] = valState[rS[0], rS[1], pS[0], pS[1]]
-
-plt.plot(lams, valStates)
-plt.show()
+pi = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1), dtype=np.int8)
+valState = np.zeros((maxR+1,maxC+1,maxR+1,maxC+1))
+solveHoward(valState,pi, 0.8)
 
 gameRR = rS[0]
 gameRC = rS[1]
