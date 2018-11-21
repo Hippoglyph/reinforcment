@@ -71,7 +71,7 @@ def QLearn(iterations, res):
 		Q[state.rR, state.rC, state.pR, state.pC, ai] += step*(r + lam*max([Q[nextState.rR, nextState.rC, nextState.pR, nextState.pC, i] for i in range(len(actions))]) - Q[state.rR, state.rC, state.pR, state.pC, ai])
 		state = nextState
 		if t % res == 0:
-			values[counter] = Q[rS[0], rS[1], pS[0], pS[1], 2]
+			values[counter] = max([Q[rS[0], rS[1], pS[0], pS[1], i] for i in range(len(actions))])
 			counter+=1
 
 	pi = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1), dtype=int)
@@ -83,6 +83,37 @@ def QLearn(iterations, res):
 
 	return pi, values
 
+def SARSAlearn(iterations, res,eps):
+	Q = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
+	alpha = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
+	pi = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1), dtype=int)
+	lam = 0.8
+	state = State(rS[0],rS[1],pS[0],pS[1])
+	values = np.zeros((iterations//res))
+	counter = 0
+	#eps = 0.1
+	for t in range(iterations):
+		ai = getEGreedyActionIndex(state, eps, pi)
+		a = actions[ai]
+		r = getReward(state, a)
+		nextState = getNextState(state, a)
+		#nextAi = getEGreedyActionIndex(nextState, eps, pi)
+		nextAi = pi[nextState.rR, nextState.rC, nextState.pR, nextState.pC]
+		alpha[state.rR, state.rC, state.pR, state.pC, ai]+=1
+		step = 1/(alpha[state.rR, state.rC, state.pR, state.pC, ai]**(2.0/3.0))
+		Q[state.rR, state.rC, state.pR, state.pC, ai] += step*(r + lam*(Q[nextState.rR, nextState.rC, nextState.pR, nextState.pC, nextAi]) - Q[state.rR, state.rC, state.pR, state.pC, ai])
+		pi[state.rR, state.rC, state.pR, state.pC] = np.argmax([Q[state.rR, state.rC, state.pR, state.pC, i] for i in range(len(actions))])
+
+		state = nextState
+		if t % res == 0:
+			values[counter] = max([Q[rS[0], rS[1], pS[0], pS[1], i] for i in range(len(actions))])
+			counter+=1
+	return pi, values
+
+def getEGreedyActionIndex(state, eps, pi):
+	if random.random() < eps:
+		return selectRandomActionIndex(state)
+	return pi[state.rR, state.rC, state.pR, state.pC]
 
 
 def getNextState(state, action):
@@ -91,13 +122,13 @@ def getNextState(state, action):
 		return State.initState()
 
 	if action == "L":
-		newState.rC -= 1
+		newState.rC = max(newState.rC-1, 0)
 	elif action == "R":
-		newState.rC += 1
+		newState.rC = min(newState.rC+1, maxC)
 	elif action == "U":
-		newState.rR -= 1
+		newState.rR = max(newState.rC-1, 0)
 	elif action == "D":
-		newState.rR += 1
+		newState.rR = min(newState.rC+1, maxC)
 
 	a = policeWalk(state)
 	if a == "L":
@@ -197,7 +228,14 @@ rS = (0,0)
 maxR = 3
 maxC = 3
 
-pi, qValues = QLearn(100000, 1000)
+#pi, qValues = QLearn(100000, 1000)
+#
+for eps in [0.0,0.1,0.2,0.4,0.6, 0.8, 1.0]:
+	pi, sValues = SARSAlearn(100000, 1000, eps)
+	plt.plot(sValues, label="Eps " + str(eps))
+	
+plt.legend()
+plt.show()
 
 stateRollOut = State.initState()
 
