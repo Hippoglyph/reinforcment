@@ -25,6 +25,9 @@ class State:
 			return True
 		return False
 
+	def initState(self):
+		return State(rS[0], rS[1], pS[0], pS[1])
+
 	def isSameState(self, state):
 		if self.rR == state.rR and self.rC == state.rC and self.pR == state.pR and self.pC == state.pC:
 			return True
@@ -43,45 +46,66 @@ def canMove(state, action):
 		return False
 	return True
 
+def canPoliceMove(state, action):
+	#borders
+	if ((state.pC == 0 and action == "L") or (state.pC == maxC and action == "R") or (state.pR == 0 and action == "U") or (state.pR == maxR and action == "D")):
+		return False
+	return True
+
 def QLearn(iterations):
 	Q = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
 	alpha = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
+	lam = 0.8
+	state = State(rS[0],rS[1],pS[0],pS[1])
+	everyN = 1000
+	values = np.zeros((iterations//everyN))
+	counter = 0
 
-	rR = rS[0]
-	rC = rS[1]
-	pR = pS[0]
-	pC = pS[1]
 
 	for t in range(iterations):
-		state = state(rR,rC,pR,pC)
-		a = selectRandomAction(state)
+		ai = selectRandomActionIndex(state)
+		a = actions[ai]
 		r = getReward(state, a)
-		nextState = ...
+		nextState = getNextState(state, a)
+		alpha[state.rR, state.rC, state.pR, state.pC, ai]+=1
+		step = 1/(alpha[state.rR, state.rC, state.pR, state.pC, ai]**(2.0/3.0))
+		Q[state.rR, state.rC, state.pR, state.pC, ai] += step*(r + lam*max([Q[nextState.rR, nextState.rC, nextState.pR, nextState.pC, i] for i in range(len(actions))]) - Q[state.rR, state.rC, state.pR, state.pC, ai])
+		state = nextState
+		if t % everyN == 0:
+			values[counter] = Q[rS[0], rS[1], pS[0], pS[1], 2]
+			counter+=1
+	plt.plot(values)
+	plt.show()
+
 
 def getNextState(state, action):
-	#TAKEN here
+	newState = State(state.rR, state.rC, state.pR, state.pC)
+	if state.isTaken():
+		return state.initState()
 
 	if action == "L":
-		state.rC -= 1
+		newState.rC -= 1
 	elif action == "R":
-		state.rC += 1
+		newState.rC += 1
 	elif action == "U":
-		state.rR -= 1
+		newState.rR -= 1
 	elif action == "D":
-		state.rR += 1
+		newState.rR += 1
 
 	a = policeWalk(state)
 	if a == "L":
-		state.pC -= 1
+		newState.pC -= 1
 	elif a == "R":
-		state.pC += 1
+		newState.pC += 1
 	elif a == "U":
-		state.pR -= 1
+		newState.pR -= 1
 	elif a == "D":
-		state.pR += 1
+		newState.pR += 1
+
+	return newState
 
 
-def selectRandomAction(state):
+def selectRandomActionIndex(state):
 	probs = np.zeros(len(actions), dtype=np.double)
 	moves = 0.0
 	for i in range(len(probs)):
@@ -98,15 +122,15 @@ def selectRandomAction(state):
 
 	for i in range(len(cumSum)):
 		if cumSum[i] > val:
-			return actions[i]
-	return actions[-1]
+			return i
+	return len(actions)-1
 
 def policeWalk(state):
 
 	probs = np.zeros(len(actions)-1, dtype=np.double)
 	moves = 0.0
 	for i in range(len(probs)):
-		if canMove(state, actions[i+1]):
+		if canPoliceMove(state, actions[i+1]):
 			moves+=1
 			probs[i] = 1
 
@@ -226,6 +250,7 @@ rS = (0,0)
 maxR = 3
 maxC = 3
 
+QLearn(100000)
 
 gameRR = rS[0]
 gameRC = rS[1]
@@ -237,9 +262,9 @@ root = tk.Tk()
 c = tk.Canvas(root, height=250, width=500, bg='white')
 c.pack(fill=tk.BOTH, expand=True)
 
-c.bind('<Configure>', lambda e: create_grid(pi, valState, rS[0], rS[1], pS[0], pS[1]))
 
-c.bind_all('<Return>', lambda e: advanceGame(pi))
+#c.bind('<Configure>', lambda e: create_grid(pi, valState, rS[0], rS[1], pS[0], pS[1]))
+#c.bind_all('<Return>', lambda e: advanceGame(pi))
 
 #c.bind_all('<Left>', lambda e,val = -1: changeDebug(val))
 #c.bind_all('<Right>', lambda e,val = 1: changeDebug(val))
