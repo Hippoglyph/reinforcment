@@ -52,7 +52,7 @@ def canPoliceMove(state, action):
 		return False
 	return True
 
-def QLearn(iterations, res):
+def QLearn(iterations, res, eps):
 	Q = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
 	alpha = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1, len(actions)))
 	lam = 0.8
@@ -62,7 +62,7 @@ def QLearn(iterations, res):
 
 
 	for t in range(iterations):
-		ai = selectRandomActionIndex(state)
+		ai = getEGreedyActionQIndex(state, eps, Q)
 		a = actions[ai]
 		r = getReward(state, a)
 		nextState = getNextState(state, a)
@@ -91,20 +91,22 @@ def SARSAlearn(iterations, res,eps):
 	state = State(rS[0],rS[1],pS[0],pS[1])
 	values = np.zeros((iterations//res))
 	counter = 0
+
+	ai = pi[rS[0],rS[1],pS[0],pS[1]]
 	#eps = 0.1
 	for t in range(iterations):
-		ai = getEGreedyActionIndex(state, eps, pi)
 		a = actions[ai]
 		r = getReward(state, a)
 		nextState = getNextState(state, a)
-		#nextAi = getEGreedyActionIndex(nextState, eps, pi)
-		nextAi = pi[nextState.rR, nextState.rC, nextState.pR, nextState.pC]
+		nextAi = getEGreedyActionIndex(nextState, eps, pi)
+		#nextAi = pi[nextState.rR, nextState.rC, nextState.pR, nextState.pC]
 		alpha[state.rR, state.rC, state.pR, state.pC, ai]+=1
 		step = 1/(alpha[state.rR, state.rC, state.pR, state.pC, ai]**(2.0/3.0))
 		Q[state.rR, state.rC, state.pR, state.pC, ai] += step*(r + lam*(Q[nextState.rR, nextState.rC, nextState.pR, nextState.pC, nextAi]) - Q[state.rR, state.rC, state.pR, state.pC, ai])
 		pi[state.rR, state.rC, state.pR, state.pC] = np.argmax([Q[state.rR, state.rC, state.pR, state.pC, i] for i in range(len(actions))])
 
 		state = nextState
+		ai = nextAi
 		if t % res == 0:
 			values[counter] = max([Q[rS[0], rS[1], pS[0], pS[1], i] for i in range(len(actions))])
 			counter+=1
@@ -114,6 +116,11 @@ def getEGreedyActionIndex(state, eps, pi):
 	if random.random() < eps:
 		return selectRandomActionIndex(state)
 	return pi[state.rR, state.rC, state.pR, state.pC]
+
+def getEGreedyActionQIndex(state, eps, Q):
+	if random.random() < eps:
+		return selectRandomActionIndex(state)
+	return np.argmax([Q[state.rR, state.rC, state.pR, state.pC, i] for i in range(len(actions))])
 
 
 def getNextState(state, action):
@@ -144,6 +151,8 @@ def getNextState(state, action):
 
 
 def selectRandomActionIndex(state):
+	return random.randint(0, len(actions)-1)
+	'''
 	probs = np.zeros(len(actions), dtype=np.double)
 	moves = 0.0
 	for i in range(len(probs)):
@@ -162,6 +171,7 @@ def selectRandomActionIndex(state):
 		if cumSum[i] > val:
 			return i
 	return len(actions)-1
+	'''
 
 def policeWalk(state):
 
@@ -183,6 +193,13 @@ def policeWalk(state):
 		if cumSum[i] > val:
 			return actions[i+1]
 	return actions[-1]
+
+def copy(take, give):
+	for rR in range(maxR + 1):
+		for rC in range(maxC + 1):
+			for pR in range(maxR + 1):
+				for pC in range(maxC + 1):
+					take[rR,rC,pR,pC] = give[rR,rC,pR,pC]
 
 def create_grid(pi, rR, rC, pR, pC):
     w = c.winfo_width() # Get current width of canvas
@@ -217,6 +234,11 @@ def advanceGame(pi, state):
 	state.pC = nextState.pC
 	create_grid(pi, state.rR, state.rC, state.pR, state.pC)
 
+def changePi(val, eps):
+	global pid
+	pid = max(0,min(len(eps)-1, pid+val))
+	print("Pi for eps = ", str(eps[pid]))
+
 bank = (1,1)
 
 actions = ["S" ,"U", "R", "D", "L"]
@@ -228,16 +250,22 @@ rS = (0,0)
 maxR = 3
 maxC = 3
 
+eps = [0.0,0.1,0.2,0.4,0.6, 0.8, 1.0]
+pis = pi = np.zeros((len(eps), maxR+1, maxC+1, maxR+1, maxC+1), dtype=int)
+pid = 0
+
 #pi, qValues = QLearn(100000, 1000)
 #
-for eps in [0.0,0.1,0.2,0.4,0.6, 0.8, 1.0]:
-	pi, sValues = SARSAlearn(100000, 1000, eps)
-	plt.plot(sValues, label="Eps " + str(eps))
+for ei in range(len(eps)):
+	pi, Values = QLearn(100000, 1000, eps[ei])
+	copy(pis[ei], pi)
+	plt.plot(Values, label="Eps " + str(eps[ei]))
 	
 plt.legend()
 plt.show()
 
 stateRollOut = State.initState()
+
 
 root = tk.Tk()
 
@@ -245,11 +273,11 @@ c = tk.Canvas(root, height=250, width=500, bg='white')
 c.pack(fill=tk.BOTH, expand=True)
 
 
-c.bind('<Configure>', lambda e: create_grid(pi, rS[0], rS[1], pS[0], pS[1]))
-c.bind_all('<Return>', lambda e: advanceGame(pi, stateRollOut))
+c.bind('<Configure>', lambda e: create_grid(pis[pid], rS[0], rS[1], pS[0], pS[1]))
+c.bind_all('<Return>', lambda e: advanceGame(pis[pid], stateRollOut))
 
-#c.bind_all('<Left>', lambda e,val = -1: changeDebug(val))
-#c.bind_all('<Right>', lambda e,val = 1: changeDebug(val))
+c.bind_all('<Left>', lambda e,val = -1: changePi(val, eps))
+c.bind_all('<Right>', lambda e,val = 1: changePi(val, eps))
 
 #c.bind_all('<Left>', lambda e,rightMove = -1, leftMove = 0: moveMino(rightMove, leftMove))
 #c.bind_all('<Right>', lambda e,rightMove = 1, leftMove = 0: moveMino(rightMove, leftMove))
