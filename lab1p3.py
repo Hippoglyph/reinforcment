@@ -73,6 +73,7 @@ def QLearn(iterations, res, eps):
 		if t % res == 0:
 			values[counter] = max([Q[rS[0], rS[1], pS[0], pS[1], i] for i in range(len(actions))])
 			counter+=1
+			print(counter)
 
 	pi = np.zeros((maxR+1, maxC+1, maxR+1, maxC+1), dtype=int)
 	for rR in range(maxR + 1):
@@ -110,6 +111,7 @@ def SARSAlearn(iterations, res,eps):
 		if t % res == 0:
 			values[counter] = max([Q[rS[0], rS[1], pS[0], pS[1], i] for i in range(len(actions))])
 			counter+=1
+			print(counter)
 	return pi, values
 
 def getEGreedyActionIndex(state, eps, pi):
@@ -250,17 +252,21 @@ rS = (0,0)
 maxR = 3
 maxC = 3
 
-eps = [0.0,0.1,0.2,0.4,0.6, 0.8, 1.0]
-pis = pi = np.zeros((len(eps), maxR+1, maxC+1, maxR+1, maxC+1), dtype=int)
+eps = [0.1,0.2,0.4,0.6, 0.8, 1.0]
+pis = np.zeros((len(eps), maxR+1, maxC+1, maxR+1, maxC+1), dtype=int)
 pid = 0
 
-#pi, qValues = QLearn(100000, 1000)
+pi, qValues = QLearn(200000, 1000, 1.0)
+plt.plot(qValues)
 #
-for ei in range(len(eps)):
-	pi, Values = QLearn(100000, 1000, eps[ei])
-	copy(pis[ei], pi)
-	plt.plot(Values, label="Eps " + str(eps[ei]))
-	
+
+#for ei in range(len(eps)):
+#	pi, Values = SARSAlearn(100000, 1000, eps[ei])
+#	copy(pis[ei], pi)
+#	plt.plot(Values, label="Eps " + str(eps[ei]))
+
+plt.xlabel("Iteration (1e+3)")
+plt.ylabel("Values at initial state")
 plt.legend()
 plt.show()
 

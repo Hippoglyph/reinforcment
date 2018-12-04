@@ -326,6 +326,8 @@ for i in range(len(lams)):
 	valStates[i] = valState[rS[0], rS[1], pS[0], pS[1]]
 
 plt.plot(lams, valStates)
+plt.xlabel(u'\u03bb')
+plt.ylabel("Value at init state")
 plt.show()
 
 gameRR = rS[0]

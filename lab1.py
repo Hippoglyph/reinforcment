@@ -271,8 +271,8 @@ def create_grid(event=None):
     			c.create_line([(col*colWidth, row*rowWidth + 1), ((col+1)*colWidth, row*rowWidth + 1)], tag='grid_line', fill="black", width=1)
     		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text=Action.getAllActions()[pi[deIndex,col,row, globalState.tC, globalState.tR]], font=("Helvetica", colWidth//4), tag='grid_line')
     		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth/2, text="{:.1f}".format(debugValState[deIndex][col, row, globalState.tC, globalState.tR]), font=("Helvetica", colWidth//4), tag='grid_line')
-    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=Action.getAllActions()[pi[time,col,row, minoC, minoR]], font=("Helvetica", colWidth//5), tag='grid_line')
-    		c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.66, text="{:.2f}".format(valState[col, row, minoC, minoR]), font=("Helvetica", colWidth//6), tag='grid_line')
+    		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.33, text=Action.getAllActions()[pi[time,col,row, minoC, minoR]], font=("Helvetica", colWidth//5), tag='grid_line')
+    		#c.create_text((col)*colWidth+colWidth*0.5, (row)*rowWidth + rowWidth*0.66, text="{:.2f}".format(valState[col, row, minoC, minoR]), font=("Helvetica", colWidth//6), tag='grid_line')
     		#text="{:.1f}".format(valState[col, row, 5-1, 0])
     		#text=Action.getAllActions()[pi[col,row, 5, 0]]
     		#text="{:.1f}".format(debugValState[deIndex][col, row, 5, 0])
@@ -464,7 +464,7 @@ startR = 0
 globalState = State(startC,startR, 4, 4)
 walls = getWalls()
 minotaurCanStay = False
-piTime = True
+piTime = False
 
 minoC = 4
 minoR = 4
@@ -475,7 +475,7 @@ time = 0
 valState = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
 valStatePrev = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1))
 
-'''
+
 pi = np.zeros((maxC+1,maxR+1,maxC+1,maxR+1), dtype=np.int8)
 
 solveHoward(valState,valStatePrev,pi)
@@ -496,7 +496,7 @@ initValueState(valState,pi)
 
 solveBellman(T, valState, valStatePrev, pi)#, debugValState)
 
-'''
+
 minoMoveWinRate = rollOut(pi, T)
 
 initValueState(valState,pi)
@@ -504,8 +504,10 @@ minotaurCanStay = True
 solveBellman(T, valState, valStatePrev, pi)
 minoStayWinRate = rollOut(pi, T)
 
-plt.plot(range(9,T+1), minoMoveWinRate, label="Move Win Rate")
-plt.plot(range(9,T+1), minoStayWinRate, label="Stay Win Rate")
+plt.plot(range(9,T+1), minoMoveWinRate, label="Move")
+plt.plot(range(9,T+1), minoStayWinRate, label="Stay")
+plt.xlabel("T")
+plt.ylabel("Winrate")
 plt.legend()
 plt.show()
 '''
