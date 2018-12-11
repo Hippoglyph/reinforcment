@@ -16,7 +16,7 @@ class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_size):
         self.check_solve = True	#If True, stop if you satisfy solution confition
-        self.render = True        #If you want to see Cartpole learning, then change to True
+        self.render = False        #If you want to see Cartpole learning, then change to True
 
         #Get size of state and action
         self.state_size = state_size
@@ -25,13 +25,13 @@ class DQNAgent:
 ################################################################################
 ################################################################################
         #Set hyper parameters for the DQN. Do not adjust those labeled as Fixed.
-        self.discount_factor = 0.95
-        self.learning_rate = 0.005
+        self.discount_factor = 0.995
+        self.learning_rate = 0.01
         self.epsilon = 0.02 #Fixed
         self.batch_size = 32 #Fixed
-        self.memory_size = 1000
+        self.memory_size = 6000
         self.train_start = 1000 #Fixed
-        self.target_update_frequency = 1
+        self.target_update_frequency = 10
 ################################################################################
 ################################################################################
 
@@ -56,8 +56,10 @@ class DQNAgent:
         #Tip: Consult https://keras.io/getting-started/sequential-model-guide/
     def build_model(self):
         model = Sequential()
-        model.add(Dense(16, input_dim=self.state_size, activation='relu',
+        model.add(Dense(32, input_dim=self.state_size, activation='relu',
                         kernel_initializer='he_uniform'))
+        #model.add(Dense(16, activation='relu',
+        #                kernel_initializer='he_uniform'))
         model.add(Dense(self.action_size, activation='linear',
                         kernel_initializer='he_uniform'))
         model.summary()
@@ -205,7 +207,7 @@ if __name__ == "__main__":
                 #print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
                  #     len(agent.memory))
 
-                print("episode: {0:03} score: {1:05.1f}".format(e, score) + " q_value:" + str(max_q_mean[e]) + "  memory length:" +str(len(agent.memory)))
+                print("episode: {0:3} score: {1:5.1f} q_value: {2:4.1f} memory length: {3:4} avg_score: {4:4.0f}".format(e, score, max_q_mean[e][0], len(agent.memory), np.mean(scores[-min(100, len(scores)):])))
 
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
