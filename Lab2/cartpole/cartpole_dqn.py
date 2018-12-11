@@ -15,7 +15,7 @@ EPISODES = 1000 #Maximum number of episodes
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_size):
-        self.check_solve = False	#If True, stop if you satisfy solution confition
+        self.check_solve = True	#If True, stop if you satisfy solution confition
         self.render = True        #If you want to see Cartpole learning, then change to True
 
         #Get size of state and action
@@ -77,11 +77,14 @@ class DQNAgent:
         #Insert your e-greedy policy code here
         #Tip 1: Use the random package to generate a random action.
         #Tip 2: Use keras.model.predict() to compute Q-values from the state.
-        action = random.randrange(self.action_size)
-        return action
+
+        if(random.random() < self.epsilon):
+        	return random.randrange(self.action_size)
+        return np.argmax(self.model.predict(state))
+
 ###############################################################################
 ###############################################################################
-    #Save sample <s,a,r,s'> to the replay memory
+    #Save sample <s,a,r,s',done> to the replay memory
     def append_sample(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done)) #Add sample to the end of the list
 
@@ -96,7 +99,7 @@ class DQNAgent:
         update_target = np.zeros((batch_size, self.state_size)) #Same as above, but used for the target network
         action, reward, done = [], [], [] #Empty arrays that will grow dynamically
 
-        for i in range(self.batch_size):
+        for i in range(batch_size):
             update_input[i] = mini_batch[i][0] #Allocate s(i) to the network input array from iteration i in the batch
             action.append(mini_batch[i][1]) #Store a(i)
             reward.append(mini_batch[i][2]) #Store r(i)
@@ -112,8 +115,8 @@ class DQNAgent:
         #Insert your Q-learning code here
         #Tip 1: Observe that the Q-values are stored in the variable target
         #Tip 2: What is the Q-value of the action taken at the last state of the episode?
-        for i in range(self.batch_size): #For every batch
-            target[i][action[i]] = random.randint(0,1)
+        for i in range(batch_size): #For every batch
+            target[i][action[i]] = reward[i] if done[i] else reward[i] + self.discount_factor*np.max(target_val[i])
 ###############################################################################
 ###############################################################################
 
@@ -199,8 +202,10 @@ if __name__ == "__main__":
                 scores.append(score)
                 episodes.append(e)
 
-                print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
-                      len(agent.memory))
+                #print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
+                 #     len(agent.memory))
+
+                print("episode: {0:03} score: {1:05.1f}".format(e, score) + " q_value:" + str(max_q_mean[e]) + "  memory length:" +str(len(agent.memory)))
 
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
