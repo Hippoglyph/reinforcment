@@ -16,7 +16,7 @@ class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_size):
         self.check_solve = True	#If True, stop if you satisfy solution confition
-        self.render = False        #If you want to see Cartpole learning, then change to True
+        self.render = True        #If you want to see Cartpole learning, then change to True
 
         #Get size of state and action
         self.state_size = state_size
@@ -25,13 +25,13 @@ class DQNAgent:
 ################################################################################
 ################################################################################
         #Set hyper parameters for the DQN. Do not adjust those labeled as Fixed.
-        self.discount_factor = 0.995
-        self.learning_rate = 0.01
+        self.discount_factor = 0.995 #0.995 - best
+        self.learning_rate = 0.001 # 0.01 - best or 0.001
         self.epsilon = 0.02 #Fixed
         self.batch_size = 32 #Fixed
-        self.memory_size = 6000
+        self.memory_size = 10000 # 6000 - best or 1000
         self.train_start = 1000 #Fixed
-        self.target_update_frequency = 10
+        self.target_update_frequency = 10 # 10 - best or 1
 ################################################################################
 ################################################################################
 
@@ -127,7 +127,7 @@ class DQNAgent:
                        epochs=1, verbose=0)
         return
     #Plots the score per episode as well as the maximum q value per episode, averaged over precollected states.
-    def plot_data(self, episodes, scores, max_q_mean):
+    def plot_data(self, episodes, scores, max_q_mean, avgScore):
         pylab.figure(0)
         pylab.plot(episodes, max_q_mean, 'b')
         pylab.xlabel("Episodes")
@@ -139,6 +139,13 @@ class DQNAgent:
         pylab.xlabel("Episodes")
         pylab.ylabel("Score")
         pylab.savefig("scores.png")
+
+        pylab.figure(2)
+        pylab.plot(episodes, avgScore, 'b')
+        pylab.xlabel("Episodes")
+        pylab.ylabel("Average Score")
+        pylab.savefig("averageScore.png")
+
 
 if __name__ == "__main__":
     #For CartPole-v0, maximum episode length is 200
@@ -169,7 +176,7 @@ if __name__ == "__main__":
             test_states[i] = state
             state = next_state
 
-    scores, episodes = [], [] #Create dynamically growing score and episode counters
+    scores, episodes, avgScore = [], [], [] #Create dynamically growing score and episode counters
     for e in range(EPISODES):
         done = False
         score = 0
@@ -181,7 +188,7 @@ if __name__ == "__main__":
         max_q_mean[e] = np.mean(max_q[e][:])
 
         while not done:
-            if agent.render:
+            if agent.render and e > 950:
                 env.render() #Show cartpole animation
 
             #Get action for the current state and go one step in environment
@@ -203,17 +210,18 @@ if __name__ == "__main__":
                 #Plot the play time for every episode
                 scores.append(score)
                 episodes.append(e)
+                avgScore.append(np.mean(scores[-min(100, len(scores)):]))
 
                 #print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
                  #     len(agent.memory))
 
-                print("episode: {0:3} score: {1:5.1f} q_value: {2:4.1f} memory length: {3:4} avg_score: {4:4.0f}".format(e, score, max_q_mean[e][0], len(agent.memory), np.mean(scores[-min(100, len(scores)):])))
+                print("episode: {0:3} score: {1:5.1f} q_value: {2:4.1f} memory length: {3:4} avg_score: {4:4.0f}".format(e, score, max_q_mean[e][0], len(agent.memory), avgScore[e]))
 
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
                 if agent.check_solve:
                     if np.mean(scores[-min(100, len(scores)):]) >= 195:
                         print("solved after", e-100, "episodes")
-                        agent.plot_data(episodes,scores,max_q_mean[:e+1])
+                        agent.plot_data(episodes,scores,max_q_mean[:e+1], avgScore)
                         sys.exit()
-    agent.plot_data(episodes,scores,max_q_mean)
+    agent.plot_data(episodes,scores,max_q_mean, avgScore)
